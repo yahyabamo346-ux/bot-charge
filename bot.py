@@ -24,13 +24,20 @@ OFFERS = {
 
 def send(url, chat_id, text):
     try:
-        data = urllib.parse.urlencode({"chat_id": chat_id, "text": text}).encode()
-        urllib.request.urlopen(url + "/sendMessage", data, timeout=10)
+        data = urllib.parse.urlencode(
+            {"chat_id": chat_id, "text": text}
+        ).encode()
+        urllib.request.urlopen(
+            url + "/sendMessage", data, timeout=10
+        )
     except Exception as e:
         print("send error:", e)
 
 def get_updates(url, offset):
-    req = urllib.request.urlopen(url + "/getUpdates?offset=" + str(offset) + "&timeout=20", timeout=30)
+    req = urllib.request.urlopen(
+        url + "/getUpdates?offset=" + str(offset)
+        + "&timeout=20", timeout=30
+    )
     return json.loads(req.read().decode())
 
 def customer_bot():
@@ -47,25 +54,61 @@ def customer_bot():
                 if not text:
                     continue
                 if text == "/start":
-                    send(URL, chat_id, "👋 مرحبا بيك فـ Speed Charge ⚡\n\n🎰 هاد البوت كيشحن منصة 1xBet فقط\n📱 و بتعبئة Inwi فقط\n\n👇 ختار العرض:\n\n1️⃣ - 20 Inwi = 16 DH\n2️⃣ - 30 Inwi = 26 DH\n3️⃣ - 50 Inwi = 46 DH\n4️⃣ - 100 Inwi = 90 DH\n\nصيفط رقم العرض: 1 ولا 2 ولا 3 ولا 4")
+                    m = "مرحبا بيك فـ Speed Charge\n"
+                    m += "كيشحن 1xBet فقط\n"
+                    m += "و بتعبئة Inwi فقط\n"
+                    m += "1 - 20 Inwi = 16 DH\n"
+                    m += "2 - 30 Inwi = 26 DH\n"
+                    m += "3 - 50 Inwi = 46 DH\n"
+                    m += "4 - 100 Inwi = 90 DH\n"
+                    m += "صيفط رقم العرض"
+                    send(URL, chat_id, m)
                     user_step[chat_id] = "offer"
                 elif user_step.get(chat_id) == "offer":
                     if text in OFFERS:
                         user_offer[chat_id] = OFFERS[text]
-                        send(URL, chat_id, "✅ ختاريتي: " + OFFERS[text] + "\n\n🆔 دابا صيفط ليا ID ديالك ديال 1xBet")
+                        m = "ختاريتي: " + OFFERS[text] + "\n"
+                        m += "دابا صيفط ID ديال 1xBet"
+                        send(URL, chat_id, m)
                         user_step[chat_id] = "id"
                     else:
-                        send(URL, chat_id, "❌ صيفط غير رقم العرض: 1 ولا 2 ولا 3 ولا 4")
+                        send(URL, chat_id, "صيفط غير 1 ولا 2 ولا 3 ولا 4")
                 elif user_step.get(chat_id) == "id":
+                    if not text.isdigit():
+                        send(URL, chat_id, "ID غالط، صيفط غير الأرقام")
+                        continue
+                    if not (8 <= len(text) <= 10):
+                        send(URL, chat_id, "ID غالط، خاصو 8 حتى 10 أرقام")
+                        continue
                     user_data[chat_id] = text
                     offer = user_offer.get(chat_id, "")
-                    send(URL, chat_id, "✅ ID ديالك: " + text + "\n\n💳 دابا صيفط كود تعبئة Inwi:\n" + offer)
+                    m = "ID ديالك: " + text + "\n"
+                    m += "دابا صيفط كود Inwi\n"
+                    m += offer
+                    send(URL, chat_id, m)
                     user_step[chat_id] = "code"
                 elif user_step.get(chat_id) == "code":
+                    if not text.isdigit():
+                        send(URL, chat_id, "الكود غالط، صيفط غير الأرقام")
+                        continue
+                    if len(text) != 14:
+                        send(URL, chat_id, "الكود غالط، خاصو 14 رقم")
+                        continue
                     offer = user_offer.get(chat_id, "")
                     id_1x = user_data.get(chat_id, "")
-                    send(ADMIN_URL, ADMIN_ID, "🔥 طلب جديد\n\n🎁 العرض: " + offer + "\n🆔 ID: " + id_1x + "\n💳 الكود: " + text + "\n👤 كود الكليان: " + str(chat_id) + "\n\nباش تأكدو صيفط:\n/done " + str(chat_id))
-                    send(URL, chat_id, "✅ وصل الطلب ديالك\n🎁 العرض: " + offer + "\n⏳ تسنا شوية غادي نتأكد و نشحن ليك")
+                    m = "طلب جديد\n"
+                    m += "العرض: " + offer + "\n"
+                    m += "ID: " + id_1x + "\n"
+                    m += "الكود: " + text + "\n"
+                    m += "الكليان: " + str(chat_id) + "\n"
+                    m += "/done " + str(chat_id) + "\n"
+                    m += "/id_ghalat " + str(chat_id) + "\n"
+                    m += "/code_ghalat " + str(chat_id)
+                    send(ADMIN_URL, ADMIN_ID, m)
+                    m2 = "وصل الطلب ديالك\n"
+                    m2 += offer + "\n"
+                    m2 += "تسنا شوية غادي نشحن ليك"
+                    send(URL, chat_id, m2)
                     user_step[chat_id] = "done"
         except Exception as e:
             print("Error client:", e)
@@ -87,11 +130,35 @@ def admin_bot():
                 if text.startswith("/done"):
                     parts = text.split()
                     if len(parts) == 2:
-                        client_id = parts[1]
-                        send(URL, client_id, "✅ تم شحن حسابك بنجاح 🎉\nشكرا على ثقتك فـ Speed Charge ⚡")
-                        send(ADMIN_URL, ADMIN_ID, "صافي دازت ليه ✅")
+                        cid = parts[1]
+                        m = "تم شحن حسابك بنجاح\n"
+                        m += "شكرا على ثقتك فـ Speed Charge"
+                        send(URL, cid, m)
+                        send(ADMIN_URL, ADMIN_ID, "صافي دازت ليه")
                     else:
-                        send(ADMIN_URL, ADMIN_ID, "صيفط هكا: /done + كود الكليان")
+                        send(ADMIN_URL, ADMIN_ID, "صيفط: /done + الكود")
+                elif text.startswith("/id_ghalat"):
+                    parts = text.split()
+                    if len(parts) == 2:
+                        cid = int(parts[1])
+                        user_step[cid] = "id"
+                        m = "ID اللي صيفطي غالط\n"
+                        m += "عاود صيفط ID صحيح"
+                        send(URL, cid, m)
+                        send(ADMIN_URL, ADMIN_ID, "صيفطنا ليه ID غالط")
+                    else:
+                        send(ADMIN_URL, ADMIN_ID, "صيفط: /id_ghalat + الكود")
+                elif text.startswith("/code_ghalat"):
+                    parts = text.split()
+                    if len(parts) == 2:
+                        cid = int(parts[1])
+                        user_step[cid] = "code"
+                        m = "كود التعبئة غالط\n"
+                        m += "عاود صيفط كود جديد"
+                        send(URL, cid, m)
+                        send(ADMIN_URL, ADMIN_ID, "صيفطنا ليه الكود غالط")
+                    else:
+                        send(ADMIN_URL, ADMIN_ID, "صيفط: /code_ghalat + الكود")
         except Exception as e:
             print("Error admin:", e)
             time.sleep(2)
